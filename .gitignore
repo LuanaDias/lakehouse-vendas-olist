@@ -13,3 +13,15 @@ override.tf.json
 *.docx
 ~$*
 *.tmp
+
+# Python
+__pycache__/
+*.pyc
+
+# Arquivos de ambiente
+.env
+.env.*
+
+# Terraform - arquivos gerados
+*.zip
+terraform/modules/lambda/layer/
