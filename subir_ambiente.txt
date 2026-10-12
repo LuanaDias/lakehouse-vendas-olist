@@ -1,0 +1,2 @@
+# Identifica a raiz do projeto e ja consegue executar idependnete do repositorio que esta
+& "$(git rev-parse --show-toplevel)\setup.ps1"

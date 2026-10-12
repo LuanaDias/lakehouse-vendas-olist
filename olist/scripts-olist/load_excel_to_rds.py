@@ -12,7 +12,7 @@ import psycopg2
 
 # Caminho relativo ao projeto:
 # scripts-olist/ -> raiz do projeto -> base_olist/
-PASTA_CSV = Path(__file__).resolve().parent.parent / "base_olist"
+PASTA_CSV = Path(__file__).resolve().parent.parent / "base_csv_olist"
 
 AWS_REGION = "us-east-1"
 RDS_INSTANCE_ID = "luana-lab-postgresql"
@@ -401,7 +401,7 @@ for arquivo, tabela in ARQUIVOS.items():
 
     with open(
         caminho_arquivo,
-        encoding="utf-8"
+        encoding="utf-8-sig"
     ) as f:
 
         reader = csv.reader(f)
@@ -441,7 +441,7 @@ for arquivo, tabela in ARQUIVOS.items():
 
         with open(
             caminho_arquivo,
-            encoding="utf-8"
+            encoding="utf-8-sig"
         ) as f:
 
             cur.copy_expert(
