@@ -11,7 +11,8 @@ locals {
     "landing",
     "bronze",
     "silver",
-    "gold"
+    "gold",
+    "spark"
   ])
 }
 
@@ -19,7 +20,8 @@ locals {
 resource "aws_s3_bucket" "data_lake" {
   for_each = local.camadas
 
-  bucket = "${var.bucket_prefix}-${each.key}"
+  bucket        = "${var.bucket_prefix}-${each.key}"
+  force_destroy = true
 
   tags = {
     Nome   = "${var.bucket_prefix}-${each.key}"
@@ -61,6 +63,20 @@ resource "aws_s3_bucket_public_access_block" "data_lake" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
+}
+
+# Upload automatico dos scripts Spark
+resource "aws_s3_object" "spark_scripts" {
+  for_each = fileset("${path.module}/../../spark", "*.py")
+
+  bucket = aws_s3_bucket.data_lake["spark"].id
+  key    = each.value
+  source = "${path.module}/../../spark/${each.value}"
+  etag   = filemd5("${path.module}/../../spark/${each.value}")
+
+  tags = {
+    Nome = each.value
+  }
 }
 
 # Lifecycle da camada landing

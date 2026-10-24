@@ -100,22 +100,46 @@ Write-Host "============================================" -ForegroundColor Cyan
 $DmsTaskId = "luana-lab-rds-to-s3-landing"
 $AwsRegion = "us-east-1"
 
-$DmsStatus = aws dms describe-replication-tasks `
-    --filters "Name=replication-task-id,Values=$DmsTaskId" `
-    --query "ReplicationTasks[0].Status" `
-    --output text `
-    --region $AwsRegion `
-    --profile $env:AWS_PROFILE `
-    --no-cli-pager
+# Tempo total de monitoramento
+$MaxTentativas = 30
+$IntervaloSegundos = 10
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Erro ao consultar o DMS." -ForegroundColor Red
-    exit 1
+$DmsStatus = ""
+
+for ($Tentativa = 1; $Tentativa -le $MaxTentativas; $Tentativa++) {
+
+    $DmsStatus = aws dms describe-replication-tasks `
+        --filters "Name=replication-task-id,Values=$DmsTaskId" `
+        --query "ReplicationTasks[0].Status" `
+        --output text `
+        --region $AwsRegion `
+        --profile $env:AWS_PROFILE `
+        --no-cli-pager
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Erro ao consultar o DMS." -ForegroundColor Red
+        exit 1
+    }
+
+    $DmsStatus = $DmsStatus.Trim().ToLowerInvariant()
+
+    Write-Host "Tentativa $Tentativa/$MaxTentativas - Status DMS: $DmsStatus"
+
+    # Se falhou, não precisa continuar esperando
+    if ($DmsStatus -eq "failed") {
+        break
+    }
+
+    # Se está rodando, ainda vamos monitorar por alguns ciclos
+    if ($DmsStatus -eq "running") {
+        if ($Tentativa -lt $MaxTentativas) {
+            Start-Sleep -Seconds $IntervaloSegundos
+        }
+    }
+    else {
+        Start-Sleep -Seconds $IntervaloSegundos
+    }
 }
-
-$DmsStatus = $DmsStatus.Trim().ToLowerInvariant()
-
-Write-Host "Status da tarefa DMS: $DmsStatus"
 
 # ============================================================
 # 8. REPROCESSAR SOMENTE SE ESTIVER COM ERRO
@@ -141,42 +165,58 @@ if ($DmsStatus -eq "failed") {
 
     $DmsTaskArn = $DmsTaskArn.Trim()
 
-    Write-Host "Parando a tarefa DMS..."
-
-    aws dms stop-replication-task `
-        --replication-task-arn $DmsTaskArn `
+    $DmsStatus = aws dms describe-replication-tasks `
+        --filters "Name=replication-task-id,Values=$DmsTaskId" `
+        --query "ReplicationTasks[0].Status" `
+        --output text `
         --region $AwsRegion `
         --profile $env:AWS_PROFILE `
         --no-cli-pager
 
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "Erro ao parar a tarefa DMS." -ForegroundColor Red
-        exit 1
-    }
+    $DmsStatus = $DmsStatus.Trim().ToLowerInvariant()
 
-    Write-Host "Aguardando DMS ficar parado..."
+    if ($DmsStatus -eq "running" -or $DmsStatus -eq "starting") {
 
-    do {
+        Write-Host "Parando a tarefa DMS..."
 
-        Start-Sleep -Seconds 10
-
-        $DmsStatus = aws dms describe-replication-tasks `
-            --filters "Name=replication-task-id,Values=$DmsTaskId" `
-            --query "ReplicationTasks[0].Status" `
-            --output text `
+        aws dms stop-replication-task `
+            --replication-task-arn $DmsTaskArn `
             --region $AwsRegion `
             --profile $env:AWS_PROFILE `
             --no-cli-pager
 
-        $DmsStatus = $DmsStatus.Trim().ToLowerInvariant()
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Erro ao parar a tarefa DMS." -ForegroundColor Red
+            exit 1
+        }
 
-        Write-Host "Status atual: $DmsStatus"
+        Write-Host "Aguardando DMS ficar parado..."
 
-    } while ($DmsStatus -eq "stopping")
+        do {
 
-    if ($DmsStatus -ne "stopped") {
-        Write-Host "DMS não ficou parado. Status: $DmsStatus" -ForegroundColor Red
-        exit 1
+            Start-Sleep -Seconds 10
+
+            $DmsStatus = aws dms describe-replication-tasks `
+                --filters "Name=replication-task-id,Values=$DmsTaskId" `
+                --query "ReplicationTasks[0].Status" `
+                --output text `
+                --region $AwsRegion `
+                --profile $env:AWS_PROFILE `
+                --no-cli-pager
+
+            $DmsStatus = $DmsStatus.Trim().ToLowerInvariant()
+
+            Write-Host "Status atual: $DmsStatus"
+
+        } while ($DmsStatus -eq "stopping")
+
+        if ($DmsStatus -ne "stopped") {
+            Write-Host "DMS não ficou parado. Status: $DmsStatus" -ForegroundColor Red
+            exit 1
+        }
+    }
+    else {
+        Write-Host "DMS já está parado (status: $DmsStatus). Pulando stop."
     }
 
     Write-Host "Executando Reload Target..."
@@ -200,14 +240,24 @@ if ($DmsStatus -eq "failed") {
 elseif ($DmsStatus -eq "running") {
 
     Write-Host ""
-    Write-Host "DMS está funcionando normalmente." -ForegroundColor Green
+    Write-Host "DMS permaneceu funcionando durante o período de monitoramento." -ForegroundColor Green
     Write-Host "Nenhum reload será executado."
 
 }
 else {
 
     Write-Host ""
-    Write-Host "DMS está com status: $DmsStatus" -ForegroundColor Yellow
+    Write-Host "DMS terminou o monitoramento com status: $DmsStatus" -ForegroundColor Yellow
     Write-Host "Nenhum reload automático será executado."
 
 }
+
+# ============================================================
+# FINAL
+# ============================================================
+
+Write-Host ""
+Write-Host "============================================" -ForegroundColor Green
+Write-Host "  Processo concluido!" 
+Write-Host "============================================" -ForegroundColor Green
+Write-Host ""

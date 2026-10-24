@@ -24,3 +24,21 @@ output "nome_landing" {
 
   value = aws_s3_bucket.data_lake["landing"].bucket
 }
+
+output "nome_bronze" {
+  description = "Nome do bucket Bronze"
+
+  value = aws_s3_bucket.data_lake["bronze"].bucket
+}
+
+output "nome_spark" {
+  description = "Nome do bucket Spark"
+
+  value = aws_s3_bucket.data_lake["spark"].bucket
+}
+
+output "arn_spark" {
+  description = "ARN do bucket Spark"
+
+  value = aws_s3_bucket.data_lake["spark"].arn
+}

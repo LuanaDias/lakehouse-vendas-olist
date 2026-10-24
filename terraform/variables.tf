@@ -3,7 +3,7 @@ variable "alert_email" {
   type        = string
 }
 
-variable "ip_acesso" {
-  description = "IP permitido para acessar o RDS"
+variable "emr_key_name" {
+  description = "Nome da key pair EC2 para SSH no EMR"
   type        = string
 }
