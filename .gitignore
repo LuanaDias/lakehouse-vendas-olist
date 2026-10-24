@@ -18,6 +18,11 @@ override.tf.json
 __pycache__/
 *.pyc
 
+# Chaves privadas
+*.pem
+*.key
+terraform/keyPair/
+
 # Arquivos de ambiente
 .env
 .env.*
