@@ -22,14 +22,8 @@ data "aws_s3_bucket" "bronze" {
   bucket = "luana-lab-data-lake-bronze"
 }
 
-resource "aws_s3_bucket" "spark" {
-  bucket        = "luana-lab-data-lake-spark"
-  force_destroy = true
-
-  tags = {
-    Nome   = "luana-lab-data-lake-spark"
-    Camada = "spark"
-  }
+data "aws_s3_bucket" "spark" {
+  bucket = "luana-lab-data-lake-sparkk"
 }
 
 ###############################################################################
@@ -54,6 +48,21 @@ module "budget" {
 
 #  bucket_prefix = "luana-lab-data-lake"
 #}
+
+##Carregar arquivos python par ao s3
+resource "aws_s3_object" "spark_scripts" {
+  for_each = fileset("${path.root}/../spark", "*.py")
+
+  bucket = data.aws_s3_bucket.spark.id
+  key    = each.value
+  source = "${path.root}/../spark/${each.value}"
+  etag   = filemd5("${path.root}/../spark/${each.value}")
+
+  tags = {
+    Nome = each.value
+  }
+}
+
 
 ###############################################################################
 #########             VPC E SUBNETS                               #############
@@ -156,23 +165,23 @@ module "glue" {
 #########              EMR - SPARK (EC2)                        ###############
 ###############################################################################
 
-module "emr" {
-  source = "./modules/emr"
+#module "emr" {
+  #source = "./modules/emr"
 
   #bucket_landing_arn = module.s3.arn_landing
-  bucket_landing_arn = data.aws_s3_bucket.landing.arn
+  #bucket_landing_arn = data.aws_s3_bucket.landing.arn
   #bucket_bronze_arn  = module.s3.arn_bronze
-  bucket_bronze_arn  = data.aws_s3_bucket.bronze.arn
+  #bucket_bronze_arn  = data.aws_s3_bucket.bronze.arn
   #bucket_bronze_nome = module.s3.nome_bronze
-  bucket_bronze_nome = data.aws_s3_bucket.bronze.id
+  #bucket_bronze_nome = data.aws_s3_bucket.bronze.id
   #bucket_spark_arn   = module.s3.arn_spark
-  bucket_spark_arn   = aws_s3_bucket.spark.arn
+  #bucket_spark_arn   = aws_s3_bucket.spark.arn
   #bucket_spark_nome  = module.s3.nome_spark
-  bucket_spark_nome  = aws_s3_bucket.spark.id
+  #bucket_spark_nome  = aws_s3_bucket.spark.id
 
-  vpc_id    = module.vpc.vpc_id
-  subnet_id = module.vpc.subnets_publicas_ids["publica_a"]
+  #vpc_id    = module.vpc.vpc_id
+  #subnet_id = module.vpc.subnets_publicas_ids["publica_a"]
 
-  key_name  = var.emr_key_name
-  ip_acesso = local.ip_acesso
-}
+  #key_name  = var.emr_key_name
+  #ip_acesso = local.ip_acesso
+#}
