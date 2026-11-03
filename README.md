@@ -13,6 +13,8 @@ RDS PostgreSQL → AWS DMS → S3 → EMR/Spark → Apache Iceberg → dbt → A
 Fonte -	RDS PostgreSQL (db.t4g.micro) com a base Olist + Lambda geradora de pedidos						
 Ingestão - AWS DMS: full load + CDC → S3 landing (Parquet)						
 Processamento -	EMR (on EC2) com PySpark: landing → bronze (append) → silver (MERGE INTO, estado atual)						
+
+
 Modelagem -	dbt Core com adapter dbt-athena: silver → gold (agregados de negócio em Iceberg), com testes e documentação						
 Armazenamento -	S3 + tabelas Apache Iceberg registradas no Glue Data Catalog						
 Consumo -	Amazon Athena (workgroup com limite de dados escaneados)						
